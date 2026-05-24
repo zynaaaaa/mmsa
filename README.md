@@ -66,7 +66,7 @@ mmsa/
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/zynaaaaa/mmsa.git
+git clone -b feature/gpu-support https://github.com/zynaaaaa/mmsa.git
 cd mmsa
 ```
 
