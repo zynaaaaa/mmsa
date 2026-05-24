@@ -2,7 +2,7 @@ import argparse
 
 from MMSA import MMSA_run, get_config_regression
 
-from mmsa_mac_utils import MOSI_UNALIGNED_PATH, MOSI_ALIGNED_PATH, ensure_file_exists
+from mmsa_mac_utils import MOSI_UNALIGNED_PATH, MOSI_ALIGNED_PATH, ensure_file_exists, get_device
 
 
 MODEL_DISPLAY_NAMES = {
@@ -29,14 +29,12 @@ def run_mmsa_multiseed(model_name, seeds):
 
     config = get_config_regression(model_name, DATASET_NAME)
     config["featurePath"] = str(feature_path)
-    config["device"] = "cpu"
+    config["device"] = str(get_device())
 
     print(f"Experiment: {MODEL_DISPLAY_NAMES.get(model_name, model_name)} multi-seed")
     print("Model:", model_name)
     print(f"Feature file: {feature_path} ({data_type})")
     print("Seeds:", seeds)
-    if model_name == "mult":
-        print("MulT 在 CPU 上会比较慢，3 个 seed 可能需要较长时间。")
 
     MMSA_run(model_name, DATASET_NAME, config=config, seeds=seeds, num_workers=0)
 

@@ -8,7 +8,7 @@ from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from mmsa_mac_utils import MOSI_UNALIGNED_PATH, ensure_file_exists
+from mmsa_mac_utils import MOSI_UNALIGNED_PATH, ensure_file_exists, get_device
 
 
 DEFAULT_SEEDS = [0, 1, 2, 3, 4]
@@ -30,6 +30,8 @@ def _multiclass_acc(y_pred, y_true):
 def set_seed(seed):
     np.random.seed(seed)
     torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
 
 def load_split(data, split, modality):
@@ -39,15 +41,16 @@ def load_split(data, split, modality):
     return torch.tensor(x), torch.tensor(y).view(-1, 1)
 
 
-def evaluate(model, loader):
+def evaluate(model, loader, device):
     model.eval()
     preds = []
     labels = []
     with torch.no_grad():
         for x, y in loader:
+            x, y = x.to(device), y.to(device)
             pred = model(x)
-            preds.append(pred.numpy())
-            labels.append(y.numpy())
+            preds.append(pred.cpu().numpy())
+            labels.append(y.cpu().numpy())
 
     preds = np.concatenate(preds).reshape(-1)
     labels = np.concatenate(labels).reshape(-1)
@@ -90,6 +93,7 @@ def build_model(input_dim):
 
 def run_one_seed(data, modality, seed):
     set_seed(seed)
+    device = get_device()
 
     x_train, y_train = load_split(data, "train", modality)
     x_valid, y_valid = load_split(data, "valid", modality)
@@ -107,7 +111,7 @@ def run_one_seed(data, modality, seed):
     valid_loader = DataLoader(TensorDataset(x_valid, y_valid), batch_size=BATCH_SIZE)
     test_loader = DataLoader(TensorDataset(x_test, y_test), batch_size=BATCH_SIZE)
 
-    model = build_model(x_train.shape[1])
+    model = build_model(x_train.shape[1]).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
     criterion = nn.L1Loss()
 
@@ -119,6 +123,7 @@ def run_one_seed(data, modality, seed):
         model.train()
         train_losses = []
         for x, y in train_loader:
+            x, y = x.to(device), y.to(device)
             optimizer.zero_grad()
             pred = model(x)
             loss = criterion(pred, y)
@@ -126,7 +131,7 @@ def run_one_seed(data, modality, seed):
             optimizer.step()
             train_losses.append(loss.item())
 
-        valid_result = evaluate(model, valid_loader)
+        valid_result = evaluate(model, valid_loader, device)
         if valid_result["MAE"] < best_valid_mae:
             best_valid_mae = valid_result["MAE"]
             best_state = {k: v.clone() for k, v in model.state_dict().items()}
@@ -138,7 +143,7 @@ def run_one_seed(data, modality, seed):
         )
 
     model.load_state_dict(best_state)
-    test_result = evaluate(model, test_loader)
+    test_result = evaluate(model, test_loader, device)
     print(f"Seed {seed} result: {test_result}")
     return test_result
 

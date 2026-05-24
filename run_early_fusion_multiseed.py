@@ -2,7 +2,7 @@ import argparse
 
 from MMSA import MMSA_run, get_config_regression
 
-from mmsa_mac_utils import MOSI_ALIGNED_PATH, ensure_file_exists
+from mmsa_mac_utils import MOSI_ALIGNED_PATH, ensure_file_exists, get_device
 
 
 MODEL_NAME = "ef_lstm"
@@ -15,7 +15,7 @@ def run_early_fusion_multiseed(seeds):
 
     config = get_config_regression(MODEL_NAME, DATASET_NAME)
     config["featurePath"] = str(feature_path)
-    config["device"] = "cpu"
+    config["device"] = str(get_device())
 
     print("Experiment: Early Fusion multi-seed (using ALIGNED data)")
     print("Model:", MODEL_NAME)
